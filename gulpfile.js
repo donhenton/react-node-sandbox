@@ -13,10 +13,73 @@ var minifyCss = require('gulp-minify-css');
 var replace = require('gulp-html-replace');
 var server = require('gulp-server-livereload');
 var gutil = require('gulp-util');
+var reactify = require('reactify');
+var babelify = require('babelify');
+var browserify = require('browserify');
+var source = require('vinyl-source-stream');
+var streamify = require('gulp-streamify');
 
+
+/////////////////////////////////////////////////
+
+
+var bundler = browserify({
+    entries: ['./application/src/app.jsx'],
+    transform: [reactify, ["babelify", {"presets": ["es2015"]}]],
+    extensions: ['.jsx'],
+    debug: true,
+    cache: {},
+    packageCache: {},
+    fullPaths: true
+});
+
+
+var notify = function (error) {
+    var message = 'In: ';
+    var title = 'Error: ';
+
+    if (error.description) {
+        title += error.description;
+    } else if (error.message) {
+        title += error.message;
+    }
+
+    if (error.filename) {
+        var file = error.filename.split('/');
+        message += file[file.length - 1];
+    }
+
+    if (error.lineNumber) {
+        message += '\nOn Line: ' + error.lineNumber;
+    }
+    console.log(error);
+     
+};
+
+function bundle() {
+    return bundler
+            .bundle()
+            .on('error', notify);
+
+}
+
+
+
+
+/////////////////////////////////////////////////
 gulp.task('clean', function ( ) {
 
     del.sync(['build', 'reports']);
+
+});
+
+
+gulp.task('build-jsx', function () {
+
+    bundle()
+            .pipe(source('comp-app.min.js'))
+            .pipe(streamify(uglify()))
+            .pipe(gulp.dest('./build/assets/app/'));
 
 });
 
@@ -55,4 +118,4 @@ gulp.task('copy-resources', function () {
 
 
 //gulp.task('build', ['clean', 'minify-copy-js', 'copy-resources','prepare-index-html']);
-gulp.task('build', ['clean', 'copy-resources']);
+gulp.task('build', ['clean', 'copy-resources','build-jsx']);
